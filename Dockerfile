@@ -15,8 +15,8 @@ COPY install.r ./
 RUN Rscript install.r
 
 ENV LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 TZ=UTC
-COPY --chown=1000:100 app.R sources.R comparison.R tests.R ./
-RUN Rscript tests.R
+COPY --chown=1000:100 app.R sources.R comparison.R monitoring.R monitoring-tests.R tests.R ./
+RUN Rscript tests.R && Rscript monitoring-tests.R
 USER 1000
 EXPOSE 7860
 CMD ["Rscript", "-e", "options(sass.cache=FALSE); shiny::runApp('.', host='0.0.0.0', port=7860, launch.browser=FALSE)"]

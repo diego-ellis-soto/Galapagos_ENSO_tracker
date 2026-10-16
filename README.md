@@ -78,3 +78,30 @@ Los mapas locales abren centrados en Galápagos, incluyendo Darwin y Wolf. El de
 En Monitoreo, pulsar un marcador o cambiar la isla en la lista centra y acerca el mapa automáticamente. La escala se adapta a las islas grandes y pequeñas. Al abrir la aplicación se mantiene la vista inicial del archipiélago.
 
 El historial de índices del Pacífico muestra, al pasar el cursor, el índice, la fecha del período y el valor con dos decimales. MEI se identifica como estandarizado y sin unidades; los demás índices se muestran en °C. Las fechas identifican períodos del índice, no observaciones diarias.
+
+## Autor de la aplicación
+
+Aplicación creada por **Diego Ellis Soto**.
+
+Afiliaciones: Universidad de California, Berkeley (UC Berkeley) y Universidad de California, Santa Cruz (UC Santa Cruz).
+
+## Estado de Galápagos e informe
+
+En la pestaña **Estado de Galápagos**, seleccione una isla y pulse **Actualizar resumen de la isla**.
+**Monitoreo** sigue siendo la página inicial, con el mapa y el crédito de autor al pie.
+Se consulta una instantánea independiente del día/mes elegido en el mapa:
+- Temperatura y anomalía diaria del mismo producto NOAA CoralTemp, última fecha común disponible, referencia 1991–2020. La celda válida más cercana debe quedar a menos de 0,5° del marcador.
+- Lluvia de NASA POWER/MERRA-2 para el último mes calendario completo (si no está publicado, se informa como faltante), respecto al mismo mes de 1991–2020, con al menos 25 años válidos.
+- Persistencia de anomalías del mismo signo: hasta 90 días de temperatura y 12 meses de lluvia, siempre en la misma celda. Cero y vacíos interrumpen las secuencias; «al menos» significa que no se conoce su inicio. No son umbrales de ola de calor ni atribución al ENOS.
+
+El informe HTML contiene imágenes integradas, mapa de anomalías, dos series, fecha de consulta, cobertura, fuentes y limitaciones. Se puede abrir sin internet después de descargarlo y usar **Imprimir / guardar como PDF**, con papel A4 y escala 100 %. Corresponde a la instantánea consultada; cambiar de isla exige actualizar el resumen. El mapa del informe usa la temperatura y, si falla, la lluvia. Los marcadores son referencias geográficas, no estaciones.
+
+No se incorporan archivos de observaciones ni nuevas dependencias. `monitoring.R` debe acompañar a `app.R`; el Dockerfile lo incluye. Validación adicional: `Rscript monitoring-tests.R`. El botón reutiliza la caché remota en memoria (hasta una hora); **Consultar / actualizar datos remotos** vacía esa caché.
+
+## Carga inicial y conexiones lentas
+
+La página inicial consulta únicamente la cobertura y el mapa diario de temperatura. La lluvia se consulta al seleccionar su capa; el pronóstico oficial, al abrir su pestaña. Para cargar la serie diaria, active **Cargar historial diario de temperatura (28 días)**. El resumen y el informe siguen siendo consultas voluntarias.
+
+Las visitas nuevas conservan la caché remota compartida en memoria (hasta una hora por proceso R). El botón explícito de actualización vacía la caché. No hay archivos locales de observaciones. La primera consulta tras un reinicio todavía depende de NOAA; el navegador también debe descargar Shiny, los mapas y los componentes interactivos. En Hugging Face, las consultas a NOAA/NASA se realizan desde el servidor, no directamente desde la conexión del visitante; el usuario recibe la interfaz y los resultados.
+
+Prueba de carga diferida con servicios simulados: `Rscript loading-tests.R`.

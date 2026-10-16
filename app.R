@@ -5,10 +5,12 @@ library(leaflet)
 library(ggplot2)
 source("sources.R", local = TRUE)
 source("comparison.R", local = TRUE)
+source("monitoring.R", local = TRUE)
 link <- function(label, url) tags$a(label, href = url, target = "_blank", rel = "noopener")
 message_box <- function(...) div(class = "notice", ...)
-ui <- page_navbar(lang = "es", title = "Galápagos | Ambiente físico", id = "page", fillable = FALSE, theme = bs_theme(version = 5,
-    primary = "#126f74", base_font = font_collection("system-ui", "sans-serif")), header = tags$head(tags$script(HTML("document.addEventListener('DOMContentLoaded',function(){function ajustarMapas(){requestAnimationFrame(function(){document.querySelectorAll('.leaflet.html-widget').forEach(function(el){if(el.offsetWidth&&el.offsetHeight){var w=HTMLWidgets.find('#'+el.id);if(w&&w.resize)w.resize(el.offsetWidth,el.offsetHeight);}});});}$(document).on('shown.bs.tab',ajustarMapas);document.addEventListener('shown.bs.tab',ajustarMapas);function traducir(){document.querySelectorAll('[aria-label],[title]').forEach(function(e){['aria-label','title'].forEach(function(a){var v=e.getAttribute(a);if(!v)return;var t=v.replace('Toggle sidebar','Mostrar u ocultar panel').replace('Date format:','Formato de fecha:').replace('download icon','Descargar').replace('Toggle navigation','Mostrar navegación').replace('Resize sidebar','Cambiar ancho del panel').replace('Drag to resize sidebar','Arrastre para cambiar el ancho del panel');if(t!==v)e.setAttribute(a,t);});});}traducir();new MutationObserver(traducir).observe(document.body,{childList:true,subtree:true});});")), tags$style(HTML("body{background:#f3f7f7}.notice{padding:14px 18px;background:#e7f1f1;border-left:4px solid #126f74;margin:12px 0}.small-note{color:#496066;font-size:.9rem}.leaflet-container{background:#d9eaf0}h3{margin-top:18px}.card{margin-top:15px}.shiny-output-error-validation{color:#885818} .leaflet-control{font-size:14px!important}"))),
+ui <- page_navbar(lang = "es", title = "Galápagos | Ambiente físico", id = "page", selected = "Monitoreo", fillable = FALSE, theme = bs_theme(version = 5,
+    primary = "#126f74", base_font = font_collection("system-ui", "sans-serif")), header = tagList(
+        tags$head(tags$script(HTML("document.addEventListener('DOMContentLoaded',function(){function ajustarMapas(){requestAnimationFrame(function(){document.querySelectorAll('.leaflet.html-widget').forEach(function(el){if(el.offsetWidth&&el.offsetHeight){var w=HTMLWidgets.find('#'+el.id);if(w&&w.resize)w.resize(el.offsetWidth,el.offsetHeight);}});});}$(document).on('shown.bs.tab',ajustarMapas);document.addEventListener('shown.bs.tab',ajustarMapas);function traducir(){document.querySelectorAll('[aria-label],[title]').forEach(function(e){['aria-label','title'].forEach(function(a){var v=e.getAttribute(a);if(!v)return;var t=v.replace('Toggle sidebar','Mostrar u ocultar panel').replace('Date format:','Formato de fecha:').replace('download icon','Descargar').replace('Toggle navigation','Mostrar navegación').replace('Resize sidebar','Cambiar ancho del panel').replace('Drag to resize sidebar','Arrastre para cambiar el ancho del panel');if(t!==v)e.setAttribute(a,t);});});}traducir();new MutationObserver(traducir).observe(document.body,{childList:true,subtree:true});});")), tags$style(HTML("body{background:#f3f7f7}.app-author{margin:16px 0 8px;padding:16px 20px;background:#e7f1f1;border-left:4px solid #126f74;border-radius:6px;color:#173f43;line-height:1.5}.app-author strong{font-size:1.1rem}.app-author div+div{margin-top:4px}.notice{padding:14px 18px;background:#e7f1f1;border-left:4px solid #126f74;margin:12px 0}.small-note{color:#496066;font-size:.9rem}.leaflet-container{background:#d9eaf0}h3{margin-top:18px}.card{margin-top:15px}.shiny-output-error-validation{color:#885818} .leaflet-control{font-size:14px!important}")))),
     nav_panel("Monitoreo", layout_sidebar(sidebar = sidebar(width = 300, h4("Seleccione una isla"), selectInput("island",
         "Isla", islands$island, selected = "Santa Cruz"), radioButtons("layer", "Capa del mapa", c(`Temperatura del mar · diaria` = "sst",
         `Lluvia estimada · mensual` = "rain")), dateInput("sst_date", language = "es", "Fecha de temperatura del mar", value = Sys.Date() -
@@ -16,10 +18,15 @@ ui <- page_navbar(lang = "es", title = "Galápagos | Ambiente físico", id = "pa
         "Historial de lluvia: año inicial", 2024, min = 1981, max = as.integer(format(Sys.Date(), "%Y"))), actionButton("refresh",
         "Consultar / actualizar datos remotos", class = "btn-primary"), p(class = "small-note", "Datos de NOAA y NASA. Las respuestas válidas se conservan en memoria hasta una hora. No se usan archivos locales de observaciones."),
         downloadButton("map_csv", "Datos del mapa (CSV)"), downloadButton("series_csv", "Historial seleccionado (CSV)"), downloadButton("figure",
-            "Gráfico del historial (PNG)")), h3("Monitoreo de Galápagos"), p("Seleccione una isla en el mapa o en la lista. Pulse una celda marina para consultar su historial diario."),
+            "Gráfico del historial (PNG)")), h3("Monitoreo de Galápagos"), p("Seleccione una isla en el mapa o en la lista. Pulse una celda marina para seleccionarla; active el historial diario debajo del mapa si lo necesita."),
         uiOutput("status"), leafletOutput("map", height = 520), uiOutput("coverage"), h4("Historial de la ubicación seleccionada"),
+        checkboxInput("load_history", "Cargar historial diario de temperatura (28 días)", FALSE),
         uiOutput("series_note"), plotOutput("series_plot", height = 290), tags$details(tags$summary("Cobertura por isla: capa y fecha seleccionadas"),
-            tableOutput("island_coverage")))), comparison_ui(), nav_panel("Pronóstico oficial del ENOS", h3("Pronóstico oficial más reciente"),
+            tableOutput("island_coverage"))),
+        tags$footer(class = "app-author", `aria-label` = "Autor de la aplicación",
+            tags$div(tags$strong("Aplicación creada por Diego Ellis Soto")),
+            tags$div("Afiliaciones: Universidad de California, Berkeley (UC Berkeley) · Universidad de California, Santa Cruz (UC Santa Cruz)"))),
+    monitoring_ui(), comparison_ui(), nav_panel("Pronóstico oficial del ENOS", h3("Pronóstico oficial más reciente"),
         actionButton("forecast_refresh", "Consultar actualizaciones de NOAA"), uiOutput("forecast"), h4("Probabilidades oficiales de intensidad por trimestre"),
         uiOutput("strength_note"), plotOutput("strength_plot", height = 330), tableOutput("strength_table"),
         downloadButton("forecast_csv", "Datos de probabilidades (CSV)"), message_box(strong("El pronóstico de un índice ENOS no predice los impactos en una isla."),
@@ -53,7 +60,7 @@ server <- function(input, output, session) {
     state <- reactiveValues(meta = NULL, sst = NULL, rain = NULL, forecast = NULL, strength = NULL, point = NULL,
         history = NULL)
     observeEvent(input$refresh, {
-        rm(list = ls(remote_cache), envir = remote_cache)
+        if (isTRUE(input$refresh > 0)) rm(list = ls(remote_cache), envir = remote_cache)
         withProgress(message = "Consultando cobertura y datos remotos", value = 0, {
             state$meta <- fetch_result(get_sst_meta)
             incProgress(0.2)
@@ -63,6 +70,13 @@ server <- function(input, output, session) {
                 state$sst <- fetch_result(function() get_sst_map(m$end))
             } else state$sst <- state$meta
             incProgress(0.4)
+            incProgress(0.4)
+        })
+    }, ignoreNULL = FALSE)
+    # Rain is requested only when a rain layer is opened, never on landing.
+    observeEvent(list(input$layer, input$refresh), {
+        req(input$layer == "rain")
+        withProgress(message = "Consultando lluvia mensual", value = 0.2, {
             yr <- as.integer(input$rain_start)
             cur <- as.integer(format(Sys.Date(), "%Y"))
             if (is.na(yr) || yr < 1981 || yr > cur)
@@ -74,7 +88,6 @@ server <- function(input, output, session) {
                 updateSelectInput(session, "rain_month", choices = as.character(months), selected = as.character(tail(months,
                   1)))
             }
-            incProgress(0.4)
         })
     }, ignoreNULL = FALSE)
     observeEvent(input$sst_date, {
@@ -191,8 +204,8 @@ server <- function(input, output, session) {
         if (length(v) == 2 && all(is.finite(v)))
             state$point <- data.frame(longitude = v[1], latitude = v[2])
     })
-    observeEvent(state$point, {
-        req(state$point, state$meta$ok, state$sst$ok)
+    observeEvent(list(state$point, input$load_history), {
+        req(input$load_history, state$point, state$meta$ok, state$sst$ok)
         p <- state$point
         end <- max(state$sst$data$date)
         start <- max(state$meta$data$start, end - 27)
@@ -208,7 +221,7 @@ server <- function(input, output, session) {
     })
     selected_series <- reactive({
         if (input$layer == "sst") {
-            req(state$history$ok)
+            req(input$load_history, state$history$ok)
             d <- state$history$data
             d$value <- d$analysed_sst
         } else {
@@ -230,6 +243,8 @@ server <- function(input, output, session) {
             p("Fuera del área dibujada: datos no solicitados. Un dato faltante no equivale a cero."))
     })
     output$series_note <- renderUI({
+        if (input$layer == "sst" && !isTRUE(input$load_history))
+            return(p("Active Cargar historial para consultar la serie diaria. Se descarga solo si la necesita."))
         if (input$layer == "sst" && (is.null(state$history) || !state$history$ok))
             return(message_box("Historial marino no disponible. ", if (!is.null(state$history)) state$history$error))
         d <- selected_series()
@@ -260,16 +275,21 @@ server <- function(input, output, session) {
                 "La celda más cercana tiene datos" else "Sin datos / máscara terrestre", Latitud = v$latitude[1], Longitud = v$longitude[1])
         }))
     }, digits = 3)
-    observeEvent(input$forecast_refresh, {
+    load_forecast <- function(refresh = FALSE) {
         state$forecast <- fetch_result(function() {
-            fetch_text(CPC, refresh = TRUE)
+            if (refresh) fetch_text(CPC, refresh = TRUE)
             get_forecast()
         })
         state$strength <- fetch_result(function() {
-            fetch_text(STRENGTH, refresh = TRUE)
+            if (refresh) fetch_text(STRENGTH, refresh = TRUE)
             get_strength()
         })
-    }, ignoreNULL = FALSE)
+    }
+    observeEvent(input$page, {
+        if (identical(input$page, "Pronóstico oficial del ENOS") && is.null(state$forecast))
+            load_forecast()
+    })
+    observeEvent(input$forecast_refresh, load_forecast(TRUE), ignoreInit = TRUE)
     output$forecast <- renderUI({
         z <- state$forecast
         if (is.null(z) || !z$ok)
@@ -318,6 +338,7 @@ server <- function(input, output, session) {
             `El Niño fuerte o muy fuerte (%)` = d$warm_strong + d$warm_very_strong, check.names = FALSE)
     })
     comparison_server(input, output, session, state)
+    monitoring_server(input, output, session)
     output$index_location <- renderUI(tagList(p(index_location_notes[[input$index]]), p("Rojo: valores positivos / fase cálida; azul: valores negativos / fase fría. El color indica el signo, no la clasificación oficial de un episodio ENOS. Los índices regionales son promedios de áreas, no mediciones de estaciones locales.")))
     output$index_region_map <- renderLeaflet({
         r <- index_regions[index_regions$index == input$index, ]

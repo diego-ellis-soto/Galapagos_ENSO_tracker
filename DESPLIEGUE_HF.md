@@ -35,7 +35,7 @@ Las pruebas sin conexión usan entradas sintéticas y no observaciones locales. 
 
 ## Subir primero a GitHub
 
-Use **el contenido de esta carpeta como raíz del repositorio**, no el ZIP ni la carpeta superior `outputs`. Deben estar en la raíz `Dockerfile`, `README.md`, `install.r`, `.dockerignore`, `.gitignore`, `app.R`, `sources.R`, `comparison.R` y `tests.R`. Incluya también los documentos Markdown.
+Use **el contenido de esta carpeta como raíz del repositorio**, no el ZIP ni la carpeta superior `outputs`. Deben estar en la raíz `Dockerfile`, `README.md`, `install.r`, `.dockerignore`, `.gitignore`, `app.R`, `sources.R`, `comparison.R`, `monitoring.R`, `monitoring-tests.R` y `tests.R`. Incluya también los documentos Markdown.
 
 Esta carpeta todavía no es un repositorio Git. Para un repositorio nuevo:
 

@@ -24,3 +24,15 @@ No se publicó en GitHub ni Hugging Face. Falta verificar la primera construcci�
 El llavero local de Docker impidió inicialmente consultar una imagen pública. La compilación se realizó usando una configuración Docker temporal sin credenciales. Las credenciales habituales no se cambiaron.
 
 La aplicación conserva únicamente respuestas remotas en memoria. No se empaquetan archivos locales de observaciones. Consulte `DESPLIEGUE_HF.md` para reproducir la prueba y publicar el repositorio.
+
+## Resumen e informe — 16 de octubre de 2026
+
+- Interfaz local cargada con `monitoring.R`; pruebas existentes y `monitoring-tests.R` satisfactorias.
+- Consulta real de Santa Cruz: comparación marina y 90 observaciones diarias; lluvia con 11 de 12 meses disponibles. El mes faltante se mantiene vacío y se informa la última lluvia disponible.
+- Prueba de servidor del módulo con esa instantánea: consulta, aviso al cambiar de isla y actualización del resumen correctos.
+- Informe HTML autónomo generado y revisado en navegador: español, imágenes integradas, mapa, series, fechas, cobertura y enlaces. Formato compacto A4 para imprimir; la paginación final depende de la configuración del navegador.
+- Dockerfile y lista de inclusión `.dockerignore` actualizados para los nuevos archivos. La imagen Docker no se reconstruyó en esta validación; las comprobaciones de contenedor anteriores corresponden a la versión previa.
+
+## Carga diferida — 16 de octubre de 2026
+
+Prueba de servidor con contadores de consultas: en Monitoreo no se solicita lluvia, pronóstico ni historial diario; las consultas se activan con su control correspondiente. Volver a la pestaña del pronóstico reutiliza su resultado. Abrir una sesión no borra la caché compartida. Pasaron también las pruebas existentes y de persistencia. No se ha medido una reducción porcentual ni simulado una conexión de Galápagos.

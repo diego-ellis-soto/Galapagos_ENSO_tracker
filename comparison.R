@@ -39,10 +39,16 @@ comparison_server <- function(input, output, session, monitor_state) {
                 })
             } else {
                 comp$result <- fetch_result(function() {
-                  if (is.null(monitor_state$rain) || !monitor_state$rain$ok)
-                    stop("Consulte primero la lluvia en la pestaña Monitoreo.")
+                  if (is.null(monitor_state$rain))
+                    monitor_state$rain <- fetch_result(function() get_rain(as.integer(input$rain_start), as.integer(format(Sys.Date(), "%Y"))))
+                  if (!monitor_state$rain$ok) stop(monitor_state$rain$error)
                   baseline <- get_rain(1991, 2020)
-                  compare_rain(monitor_state$rain$data, baseline, input$compare_month)
+                  month <- input$compare_month
+                  if (is.null(month) || !nzchar(month)) {
+                    rain <- monitor_state$rain$data
+                    month <- max(rain$date[is.finite(rain$rain_mm)])
+                  }
+                  compare_rain(monitor_state$rain$data, baseline, month)
                 })
             }
             incProgress(0.9)
