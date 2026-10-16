@@ -105,3 +105,7 @@ La página inicial consulta únicamente la cobertura y el mapa diario de tempera
 Las visitas nuevas conservan la caché remota compartida en memoria (hasta una hora por proceso R). El botón explícito de actualización vacía la caché. No hay archivos locales de observaciones. La primera consulta tras un reinicio todavía depende de NOAA; el navegador también debe descargar Shiny, los mapas y los componentes interactivos. En Hugging Face, las consultas a NOAA/NASA se realizan desde el servidor, no directamente desde la conexión del visitante; el usuario recibe la interfaz y los resultados.
 
 Prueba de carga diferida con servicios simulados: `Rscript loading-tests.R`.
+
+### Inicio y recuperación de consultas SST
+
+La temperatura se consulta automáticamente al iniciar, sin pulsar Actualizar. El selector de fecha aparece después de leer los metadatos de NOAA y muestra su última fecha publicada. El historial espera a que exista una celda válida y se vuelve a consultar si cambia la fecha, aunque la celda sea la misma. Se distingue entre consulta pendiente y error; **Reintentar historial** repite una consulta fallida. Cada petición remota permite como máximo dos intentos ante fallos temporales de conexión o HTTP 429/500/502/503/504. No se sustituyen las observaciones por datos locales ni por productos alternativos más antiguos.

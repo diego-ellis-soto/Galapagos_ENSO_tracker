@@ -13,14 +13,14 @@ ui <- page_navbar(lang = "es", title = "Galápagos | Ambiente físico", id = "pa
         tags$head(tags$script(HTML("document.addEventListener('DOMContentLoaded',function(){function ajustarMapas(){requestAnimationFrame(function(){document.querySelectorAll('.leaflet.html-widget').forEach(function(el){if(el.offsetWidth&&el.offsetHeight){var w=HTMLWidgets.find('#'+el.id);if(w&&w.resize)w.resize(el.offsetWidth,el.offsetHeight);}});});}$(document).on('shown.bs.tab',ajustarMapas);document.addEventListener('shown.bs.tab',ajustarMapas);function traducir(){document.querySelectorAll('[aria-label],[title]').forEach(function(e){['aria-label','title'].forEach(function(a){var v=e.getAttribute(a);if(!v)return;var t=v.replace('Toggle sidebar','Mostrar u ocultar panel').replace('Date format:','Formato de fecha:').replace('download icon','Descargar').replace('Toggle navigation','Mostrar navegación').replace('Resize sidebar','Cambiar ancho del panel').replace('Drag to resize sidebar','Arrastre para cambiar el ancho del panel');if(t!==v)e.setAttribute(a,t);});});}traducir();new MutationObserver(traducir).observe(document.body,{childList:true,subtree:true});});")), tags$style(HTML("body{background:#f3f7f7}.app-author{margin:16px 0 8px;padding:16px 20px;background:#e7f1f1;border-left:4px solid #126f74;border-radius:6px;color:#173f43;line-height:1.5}.app-author strong{font-size:1.1rem}.app-author div+div{margin-top:4px}.notice{padding:14px 18px;background:#e7f1f1;border-left:4px solid #126f74;margin:12px 0}.small-note{color:#496066;font-size:.9rem}.leaflet-container{background:#d9eaf0}h3{margin-top:18px}.card{margin-top:15px}.shiny-output-error-validation{color:#885818} .leaflet-control{font-size:14px!important}")))),
     nav_panel("Monitoreo", layout_sidebar(sidebar = sidebar(width = 300, h4("Seleccione una isla"), selectInput("island",
         "Isla", islands$island, selected = "Santa Cruz"), radioButtons("layer", "Capa del mapa", c(`Temperatura del mar · diaria` = "sst",
-        `Lluvia estimada · mensual` = "rain")), dateInput("sst_date", language = "es", "Fecha de temperatura del mar", value = Sys.Date() -
-        2), selectInput("rain_month", "Mes de lluvia", choices = character()), numericInput("rain_start",
+        `Lluvia estimada · mensual` = "rain")), uiOutput("sst_date_control"), selectInput("rain_month", "Mes de lluvia", choices = character()), numericInput("rain_start",
         "Historial de lluvia: año inicial", 2024, min = 1981, max = as.integer(format(Sys.Date(), "%Y"))), actionButton("refresh",
         "Consultar / actualizar datos remotos", class = "btn-primary"), p(class = "small-note", "Datos de NOAA y NASA. Las respuestas válidas se conservan en memoria hasta una hora. No se usan archivos locales de observaciones."),
         downloadButton("map_csv", "Datos del mapa (CSV)"), downloadButton("series_csv", "Historial seleccionado (CSV)"), downloadButton("figure",
             "Gráfico del historial (PNG)")), h3("Monitoreo de Galápagos"), p("Seleccione una isla en el mapa o en la lista. Pulse una celda marina para seleccionarla; active el historial diario debajo del mapa si lo necesita."),
         uiOutput("status"), leafletOutput("map", height = 520), uiOutput("coverage"), h4("Historial de la ubicación seleccionada"),
         checkboxInput("load_history", "Cargar historial diario de temperatura (28 días)", FALSE),
+        conditionalPanel("input.load_history && input.layer === 'sst'", actionButton("retry_history", "Reintentar historial")),
         uiOutput("series_note"), plotOutput("series_plot", height = 290), tags$details(tags$summary("Cobertura por isla: capa y fecha seleccionadas"),
             tableOutput("island_coverage"))),
         tags$footer(class = "app-author", `aria-label` = "Autor de la aplicación",
@@ -59,8 +59,9 @@ ui <- page_navbar(lang = "es", title = "Galápagos | Ambiente físico", id = "pa
 server <- function(input, output, session) {
     state <- reactiveValues(meta = NULL, sst = NULL, rain = NULL, forecast = NULL, strength = NULL, point = NULL,
         history = NULL)
-    observeEvent(input$refresh, {
-        if (isTRUE(input$refresh > 0)) rm(list = ls(remote_cache), envir = remote_cache)
+    load_latest_sst <- function(refresh = FALSE) {
+        if (refresh) rm(list = ls(remote_cache), envir = remote_cache)
+        state$history <- NULL
         withProgress(message = "Consultando cobertura y datos remotos", value = 0, {
             state$meta <- fetch_result(get_sst_meta)
             incProgress(0.2)
@@ -69,10 +70,12 @@ server <- function(input, output, session) {
                 updateDateInput(session, "sst_date", min = m$start, max = m$end, value = m$end)
                 state$sst <- fetch_result(function() get_sst_map(m$end))
             } else state$sst <- state$meta
-            incProgress(0.4)
-            incProgress(0.4)
+            incProgress(0.8)
         })
-    }, ignoreNULL = FALSE)
+    }
+    # Initial loading is explicit and independent of action-button initialization.
+    observeEvent(TRUE, load_latest_sst(), once = TRUE)
+    observeEvent(input$refresh, load_latest_sst(TRUE), ignoreInit = TRUE)
     # Rain is requested only when a rain layer is opened, never on landing.
     observeEvent(list(input$layer, input$refresh), {
         req(input$layer == "rain")
@@ -90,10 +93,16 @@ server <- function(input, output, session) {
             }
         })
     }, ignoreNULL = FALSE)
+    output$sst_date_control <- renderUI({
+        req(state$meta$ok)
+        m <- state$meta$data
+        dateInput("sst_date", language = "es", "Fecha de temperatura del mar", value = m$end, min = m$start, max = m$end)
+    })
     observeEvent(input$sst_date, {
         req(state$meta$ok)
         d <- as.Date(input$sst_date)
         m <- state$meta$data
+        req(length(d) == 1L, !is.na(d))
         if (d < m$start || d > m$end) {
             state$sst <- list(ok = FALSE, error = "La fecha seleccionada está fuera de la cobertura de NOAA.", fetched = utc_now())
             return()
@@ -136,7 +145,7 @@ server <- function(input, output, session) {
     output$status <- renderUI({
         z <- layer_result()
         if (is.null(z))
-            return(message_box("Todavía no se han consultado los datos."))
+            return(message_box("Consultando automáticamente la última temperatura marina publicada por NOAA…"))
         if (!z$ok)
             return(message_box(strong("Servicio remoto no disponible. "), z$error, p("No se han sustituido las observaciones. Pulse Consultar / actualizar para volver a intentarlo.")))
         d <- map_data()
@@ -148,9 +157,8 @@ server <- function(input, output, session) {
     })
     output$map <- renderLeaflet({
         z <- layer_result()
-        req(z)
         p <- mapa_galapagos()
-        if (z$ok) {
+        if (!is.null(z) && z$ok) {
             d <- map_data()
             sst <- input$layer == "sst"
             v <- if (sst)
@@ -186,7 +194,7 @@ server <- function(input, output, session) {
     })
     selected_island <- reactive(islands[islands$island == input$island, ])
     observeEvent(list(input$island, state$sst), {
-        req(state$sst$ok)
+        req(state$sst$ok, input$island)
         d <- state$sst$data
         s <- selected_island()
         d <- d[is.finite(d$analysed_sst), ]
@@ -204,12 +212,21 @@ server <- function(input, output, session) {
         if (length(v) == 2 && all(is.finite(v)))
             state$point <- data.frame(longitude = v[1], latitude = v[2])
     })
-    observeEvent(list(state$point, input$load_history), {
+    observeEvent(list(state$point, state$sst, input$load_history, input$retry_history), {
         req(input$load_history, state$point, state$meta$ok, state$sst$ok)
         p <- state$point
         end <- max(state$sst$data$date)
         start <- max(state$meta$data$start, end - 27)
-        state$history <- fetch_result(function() get_sst_series(p$longitude, p$latitude, start, end))
+        state$history <- NULL
+        withProgress(message = "Cargando historial marino de 28 días…", value = 0.1, {
+            state$history <- fetch_result(function() {
+                d <- get_sst_series(p$longitude, p$latitude, start, end)
+                if (!any(is.finite(d$analysed_sst)))
+                    stop("NOAA no devolvió observaciones válidas para esta celda y período. Puede reintentar la consulta o seleccionar otra celda marina.")
+                d
+            })
+            incProgress(0.9)
+        })
     })
     observe({
         req(state$point, input$layer == "sst", input$map_ready)
@@ -221,7 +238,7 @@ server <- function(input, output, session) {
     })
     selected_series <- reactive({
         if (input$layer == "sst") {
-            req(input$load_history, state$history$ok)
+            req(input$load_history, state$sst$ok, state$history$ok)
             d <- state$history$data
             d$value <- d$analysed_sst
         } else {
@@ -245,8 +262,13 @@ server <- function(input, output, session) {
     output$series_note <- renderUI({
         if (input$layer == "sst" && !isTRUE(input$load_history))
             return(p("Active Cargar historial para consultar la serie diaria. Se descarga solo si la necesita."))
-        if (input$layer == "sst" && (is.null(state$history) || !state$history$ok))
-            return(message_box("Historial marino no disponible. ", if (!is.null(state$history)) state$history$error))
+        if (input$layer == "sst") {
+            if (is.null(state$sst)) return(message_box("Esperando la última temperatura marina de NOAA para iniciar el historial…"))
+            if (!state$sst$ok) return(message_box("No se puede iniciar el historial sin la capa marina. ", state$sst$error))
+            if (is.null(state$point)) return(message_box("No hay una celda marina válida cercana. Seleccione una celda del mapa."))
+            if (is.null(state$history)) return(message_box("Cargando historial marino de 28 días…"))
+            if (!state$history$ok) return(message_box("Historial marino no disponible. ", state$history$error))
+        }
         d <- selected_series()
         p(sprintf("%s · centro real de celda %.3f°, %.3f°; %s registros válidos. %s", input$island, d$latitude[1],
             d$longitude[1], sum(is.finite(d$value)), if (input$layer == "sst")

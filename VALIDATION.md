@@ -36,3 +36,10 @@ La aplicación conserva únicamente respuestas remotas en memoria. No se empaque
 ## Carga diferida — 16 de octubre de 2026
 
 Prueba de servidor con contadores de consultas: en Monitoreo no se solicita lluvia, pronóstico ni historial diario; las consultas se activan con su control correspondiente. Volver a la pestaña del pronóstico reutiliza su resultado. Abrir una sesión no borra la caché compartida. Pasaron también las pruebas existentes y de persistencia. No se ha medido una reducción porcentual ni simulado una conexión de Galápagos.
+
+## Carga SST e historial — corrección del 16 de octubre de 2026
+
+- Se reprodujo una respuesta HTTP 502 del proveedor. Posteriormente NOAA respondió: última fecha 2026-10-15, 4.644 celdas válidas y 28/28 días válidos en la celda de Santa Cruz.
+- Pruebas de servidor: carga sin pulsar Actualizar, historial activado al iniciar y cambio de fecha manteniendo la misma celda.
+- La interfaz distingue espera, falta de celda y error de consulta. Se añadió reintento manual del historial y un máximo de dos intentos por petición remota ante errores temporales.
+- Se comprobó NOAA OISST como posible respaldo, pero su última fecha era 2026-10-01; no se incorporó para evitar presentarlo como SST actual.

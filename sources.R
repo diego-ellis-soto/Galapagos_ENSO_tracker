@@ -20,6 +20,9 @@ fetch_text <- function(url, refresh = FALSE) {
     r <- httr2::request(url) |>
         httr2::req_user_agent("GalapagosPhysicalMonitor/1.0") |>
         httr2::req_timeout(25) |>
+        httr2::req_retry(max_tries = 2, max_seconds = 30, retry_on_failure = TRUE,
+            is_transient = function(resp) httr2::resp_status(resp) %in% c(429, 500, 502, 503, 504),
+            backoff = function(n) 1) |>
         httr2::req_perform()
     z <- list(text = httr2::resp_body_string(r), time = Sys.time(), url = url)
     assign(url, z, remote_cache)
